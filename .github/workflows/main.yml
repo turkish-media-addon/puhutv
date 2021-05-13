@@ -42,5 +42,5 @@ jobs:
           # DigitalOcean Personal Access Token; Used to fetch latest Kubernetes Config.
           personalAccessToken: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
           # The name of the DigitalOcean Kubernetes cluster that you plan to work with.
-          clusterName: do-fra1-addonsddnsnet
+          clusterName: pool-addons-8bcl7
           # How long the kubeconfig should stay valid for.
