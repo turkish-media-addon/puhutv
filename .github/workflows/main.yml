@@ -1,53 +1,47 @@
-# This is a basic workflow to help you get started with Actions
-
-name: puhutv
-
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+    branches:
+      - master
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
+    name: Build, push, and deploy
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - name: Checkout master
+        uses: actions/checkout@master
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Update SHA
+        run: echo $GITHUB_SHA > $GITHUB_WORKSPACE/_meta
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
-      - name: GitHub Action for DigitalOcean - doctl
-        # You may pin to the exact commit or the version.
-        uses: digitalocean/action-doctl@v2.1.0
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
         with:
           token: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
 
-      - name: Log in to DigitalOcean Container Registry with short-lived credentials
-        run: doctl registry login --expiry-seconds 600
+      - name: Build container image
+        run: docker build -t puhutv/puhu-tv:$(echo $GITHUB_SHA | head -c7) .
 
-      - name: Save DigitalOcean kubeconfig with short-lived credentials
-        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 actions-example-k8s-1-18
+      - name: Push image to Docker Hub
+        run: docker push puhutv/puhu-tv
 
-      - name: Deploy to DigitalOcean Kubernetes
-        run: kubectl apply -f $GITHUB_WORKSPACE/config/deployment.yml
+      - name: Update deployment file
+        run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|puhutv/puhu-tv:'${TAG}'|' $GITHUB_WORKSPACE/deployment.yml
+
+      - name: Replace Environment Variables
+        uses: danielr1996/envsubst-action@1.0.0
+        env:
+          PORT: 80
+        with:
+          input: deployment.yml
+          output: deploy.yml
+
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save do-fra1-addonsddnsne
+        env: 
+          CLUSTER_NAME: do-fra1-addonsddnsnet
+
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f deploy.yml
 
       - name: Verify deployment
-        run: kubectl rollout status deployment/static-example
+        run: kubectl rollout status deployment/geerd-drive

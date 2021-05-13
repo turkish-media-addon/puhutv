@@ -1,51 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: puhu-tv
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: puhu-tv
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: static-puhutv
-  labels:
-    app: static-puhutv
+  name: puhu-tv
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: static-puhutv
-  strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  minReadySeconds: 5
+      app: puhu-tv
   template:
     metadata:
       labels:
-        app: static-puhutv
+        app: puhu-tv
     spec:
       containers:
-      - name: static-puhutv
-        image: <IMAGE>
-        ports:
-        - containerPort: 5000
-        resources:
-          requests:
-            cpu: 100m
-          limits:
-            cpu: 100m
-      imagePullSecrets:
-      - name: asb
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: static-puhutv-service
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: "addons.ddns.net"
-    service.beta.kubernetes.io/do-loadbalancer-certificate-id: "55db8c92-be68-4388-ba86-c18339da5847"
-    service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
-spec:
-  type: LoadBalancer
-  ports:
-    - name: https
-      protocol: TCP
-      port: 443
-      targetPort: 5000
-  selector:
-    app: static-puhutv
+        - name: puhu-tv
+          image: puhutv/puhu-tv
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "300m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "80"
