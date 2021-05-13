@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: static-puhutv
+  labels:
+    app: static-puhutv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: static-puhutv
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: static-puhutv
+    spec:
+      containers:
+      - name: static-puhutv
+        image: <IMAGE>
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+          limits:
+            cpu: 100m
+      imagePullSecrets:
+      - name: asb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: static-puhutv-service
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "addons.ddns.net"
+    service.beta.kubernetes.io/do-loadbalancer-certificate-id: "55db8c92-be68-4388-ba86-c18339da5847"
+    service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
+spec:
+  type: LoadBalancer
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 5000
+  selector:
+    app: static-puhutv
