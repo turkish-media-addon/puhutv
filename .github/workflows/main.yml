@@ -36,18 +36,12 @@ jobs:
           echo test, and deploy your project.
       - name: GitHub Action for DigitalOcean - doctl
         # You may pin to the exact commit or the version.
-        # uses: digitalocean/action-doctl@d36a87b1d9c7bd55c8d8434ff2a991a6ee32a448
         uses: digitalocean/action-doctl@v2.1.0
         with:
-          # Version of doctl to install
-          # DigitalOcean API Token
           token: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
 
       - name: Log in to DigitalOcean Container Registry with short-lived credentials
         run: doctl registry login --expiry-seconds 600
-
-      - name: Push image to DigitalOcean Container Registry
-        run: docker push registry.digitalocean.com/asb/static-example:$(echo $GITHUB_SHA | head -c7)
 
       - name: Update deployment file
         run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|registry.digitalocean.com/asb/static-example:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
