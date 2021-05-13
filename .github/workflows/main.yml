@@ -43,20 +43,20 @@ jobs:
           # DigitalOcean API Token
           token: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
 
-        - name: Log in to DigitalOcean Container Registry with short-lived credentials
-          run: doctl registry login --expiry-seconds 600
+      - name: Log in to DigitalOcean Container Registry with short-lived credentials
+        run: doctl registry login --expiry-seconds 600
 
-        - name: Push image to DigitalOcean Container Registry
-          run: docker push registry.digitalocean.com/asb/static-example:$(echo $GITHUB_SHA | head -c7)
+      - name: Push image to DigitalOcean Container Registry
+        run: docker push registry.digitalocean.com/asb/static-example:$(echo $GITHUB_SHA | head -c7)
 
-        - name: Update deployment file
-          run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|registry.digitalocean.com/asb/static-example:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
+      - name: Update deployment file
+        run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|registry.digitalocean.com/asb/static-example:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
 
-        - name: Save DigitalOcean kubeconfig with short-lived credentials
-          run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 actions-example-k8s-1-18
+      - name: Save DigitalOcean kubeconfig with short-lived credentials
+        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 actions-example-k8s-1-18
 
-        - name: Deploy to DigitalOcean Kubernetes
-          run: kubectl apply -f $GITHUB_WORKSPACE/config/deployment.yml
+      - name: Deploy to DigitalOcean Kubernetes
+        run: kubectl apply -f $GITHUB_WORKSPACE/config/deployment.yml
 
-        - name: Verify deployment
-          run: kubectl rollout status deployment/static-example
+      - name: Verify deployment
+        run: kubectl rollout status deployment/static-example
