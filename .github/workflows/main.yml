@@ -34,13 +34,11 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
-      - name: DigitalOcean Kubernetes
+      - name: GitHub Action for DigitalOcean - doctl
         # You may pin to the exact commit or the version.
-        # uses: matootie/dokube@38195eb69a2b5db8a10d49d0785d6d3dd425f1c9
-        uses: matootie/dokube@v1.3.4
+        # uses: digitalocean/action-doctl@d36a87b1d9c7bd55c8d8434ff2a991a6ee32a448
+        uses: digitalocean/action-doctl@v2.1.0
         with:
-          # DigitalOcean Personal Access Token; Used to fetch latest Kubernetes Config.
-          personalAccessToken: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
-          # The name of the DigitalOcean Kubernetes cluster that you plan to work with.
-          clusterName: pool-addons-8bcl7
-          # How long the kubeconfig should stay valid for.
+          # Version of doctl to install
+          # DigitalOcean API Token
+          token: 0a159d0aae6059a236392fcfc216709a9a43f5dfd3fa9b62e82c10f4d04274ff
