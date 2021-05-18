@@ -1,4 +1,7 @@
-import { createAddon, runCli } from "@mediaurl/sdk";
+import { 
+  createAddon, 
+  runCli
+} from "@mediaurl/sdk";
 import * as cheerio from "cheerio";
 const axios = require("axios");
 
@@ -6,8 +9,8 @@ interface PuhuTvItem {
   title: string;
   thumbnail: string;
   link: string;
+  isDic: boolean;
 }
-
 interface idPuhuTvItem {
   downloads: string;
 }
@@ -33,25 +36,38 @@ const parseList = async (html: string, search: boolean): Promise<PuhuTvItem[]> =
         const item: PuhuTvItem = {
           title: $(elem).find("a").find("div").find("p").text(),
           thumbnail: thumbnail || "",
-          link: $(elem).find("a").first().attr("href") as string,
+          link: $(elem).find("a").first().attr("data-loc-href") as string,
+          isDic: true
         };
-    
         results.push(item);
       });
   } else {
-    $("li.puhu-list-item").each((index, elem) => {
+    if ($("li.puhu-list-item").length == 0) {
+      if(("ul.js-ga-player-tab-content li").length > 0) {
+        $("ul.js-ga-player-tab-content li").each((index, elem) => {
+          const thumbnail = $(elem).find("img").attr("src") as string;
+          const item: PuhuTvItem = {
+            title: $(elem).find("img").first().attr("title") as string,
+            thumbnail: thumbnail || "",
+            link: $(elem).find("a").attr("href") as string,
+            isDic: false
+          };
+          results.push(item);
+        });
+      }
+    } else {
+      $("li.puhu-list-item").each((index, elem) => {
         const thumbnail = $(elem).find("img").attr("src") as string;
-    
         const item: PuhuTvItem = {
           title: $(elem).find("img").first().attr("title") as string,
           thumbnail: thumbnail || "",
-          link: $(elem).find("a").first().attr("href") as string,
+          link: $(elem).find(".detail-inner").find("a").attr("href") as string,
+          isDic: true
         };
-    
         results.push(item);
       });
+    }
   }
-  
   return results;
 };
 
@@ -64,27 +80,27 @@ export const puhutvAddon = createAddon({
   itemTypes: ["movie", "series"],
   dashboards: [
     {
-      id: "dizi",
+      id: "/dizi",
       name: "Dizi",
     },
     {
-      id: "belgesel",
+      id: "/belgesel",
       name: "BELGESEL",
     },
     {
-      id: "turk-filmleri",
+      id: "/turk-filmleri",
       name: "Türk Filmleri",
     },
     {
-      id: "yasam",
+      id: "/yasam",
       name: "Yaşam Programları",
     },
     {
-      id: "puhutv-orijinal",
+      id: "/puhutv-orijinal",
       name: "Puhutv Orijinal",
     },
     {
-      id: "cocuk",
+      id: "/cocuk",
       name: "Çocuk",
     },
   ],
@@ -106,35 +122,48 @@ puhutvAddon.registerActionHandler("catalog", async (input, ctx) => {
   const { id } = input; // cagetory get name
 
   let search = false;
-  let url = "https://puhutv.com/";
+  let link = "https://puhutv.com";
   if (id) {
-    url = url + id; // get category
+    link = link + id; // get category
   } else if (input.search) {
-    url =
-      url +
-      "ajax/widget/render?widget=autocomplete_search&content_pool_id=28&keyword=" +
+    link =
+    link +
+      "/ajax/widget/render?widget=autocomplete_search&content_pool_id=28&keyword=" +
       input.search +
       " &load=1&language=tr"; // get search
     search = true;
   }
-  const results = await fetch(url).then(async (resp) => {
+  const results = await fetch(link).then(async (resp) => {
     return parseList(await resp.text(), search);
   });
 
+
   return {
     nextCursor: null,
-
     items: results.map((item) => {
       const id = item.link;
-      return {
-        id,
-        ids: { id },
-        type: "movie",
-        name: `${item.title}`,
-        images: {
-          poster: item.thumbnail,
-        },
-      };
+      if (item.isDic) {
+        return {
+          id,
+          ids: { id },
+          type: "directory",
+          name: `${item.title}`,
+          images: {
+            poster: item.thumbnail,
+          },
+        };
+      } else {
+        return {
+          id,
+          ids: { id },
+          type: "movie",
+          name: `${item.title}`,
+          images: {
+            poster: item.thumbnail,
+          },
+        };
+      }
+     
     }),
   };
 });
@@ -158,6 +187,7 @@ puhutvAddon.registerActionHandler("item", async (input, ctx) => {
       console.error(error);
     }
   };
+
   const dygvideo = await getDygvideo();
   const dataDetail = dygvideo.data.data;
 
