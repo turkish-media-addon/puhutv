@@ -82,6 +82,10 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
       id: ($(elem).attr("id") as string) || "",
       name: $(elem).find("li").attr("data-ga-slider-title") as string,
       hideOnHomescreen: false,
+      options: {
+        imageShape: "landscape",
+        displayName: true,
+      },
     };
     dash.push(item);
   });
@@ -89,7 +93,13 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
     const item: DashboardItem = {
       id: ($(elem).attr("id") as string) || "",
       name: $(elem).find("li").attr("data-ga-slider-title") as string,
-      hideOnHomescreen: true,
+      // if hideOnHomescreen is true, this dashboard will NOT be shown on the home screen in the app
+      // I recommend to leave this to `false` which is the default
+      hideOnHomescreen: false,
+      options: {
+        imageShape: "regular",
+        displayName: true,
+      },
     };
     dash.push(item);
   });
@@ -97,26 +107,7 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
   return dash;
 };
 
-const catalogChangeTop = async (): Promise<Catalog[]> => {
-  const CatalogReturn: Catalog[] = [];
-  const DashboardList = await dashboardsList();
-  DashboardList.map((elem, index) => {
-    const item: Catalog = {
-      features: {
-        search: { enabled: true },
-      },
-      options: {
-        imageShape: elem.hideOnHomescreen ? "regular" : "landscape",
-        displayName: true,
-      },
-    };
-    CatalogReturn.push(item);
-  });
-  return CatalogReturn;
-};
-
 (async () => {
-  const catalogChange = await catalogChangeTop();
   const dashboardList = await dashboardsList();
 
   const puhutvAddon = createAddon({
@@ -126,9 +117,16 @@ const catalogChangeTop = async (): Promise<Catalog[]> => {
     icon: "https://puhutv.com/app/themes/puhutv/assets/images/favicon.ico",
     version: "0.1.0",
     itemTypes: ["movie", "series"],
-    catalogs: catalogChange,
+    catalogs: [
+      {
+        features: {
+          search: { enabled: true },
+        },
+      },
+    ],
     dashboards: dashboardList,
   });
+  console.log(JSON.stringify(puhutvAddon.getProps(), null, 2));
 
   puhutvAddon.registerActionHandler("catalog", async (input, ctx) => {
     await dashboardsList();
