@@ -1,4 +1,4 @@
-import { createAddon, runCli, DashboardItem } from "@mediaurl/sdk";
+import { createAddon, runCli, DashboardItem, Catalog } from "@mediaurl/sdk";
 import * as cheerio from "cheerio";
 const axios = require("axios");
 interface PuhuTvItem {
@@ -9,7 +9,6 @@ interface PuhuTvItem {
 interface idPuhuTvItem {
   downloads: string;
 }
-
 
 const parseId = async (html: string): Promise<idPuhuTvItem> => {
   const $ = cheerio.load(html);
@@ -39,82 +38,100 @@ const parseList = async (
       results.push(item);
     });
   } else {
-    if (id.length != 0 && $("#"+ id + ' > li').length > 0) {
-      $("#"+ id + ' > li').each((index, elem) => {
+    if (id.length != 0 && $("#" + id + " > li").length > 0) {
+      $("#" + id + " > li").each((index, elem) => {
         const item: PuhuTvItem = {
           title: $(elem).find("img").first().attr("alt") as string,
-          thumbnail: $(elem).find("img").attr("data-src") as string || $(elem).find("img").attr("src") as string,
-          link: $(elem).find("a").first().attr("data-href") as string || $(elem).find("a").first().attr("href") as string,
+          thumbnail:
+            ($(elem).find("img").attr("data-src") as string) ||
+            ($(elem).find("img").attr("src") as string),
+          link:
+            ($(elem).find("a").first().attr("data-href") as string) ||
+            ($(elem).find("a").first().attr("href") as string),
         };
         results.push(item);
       });
     }
 
-    if (id.length == 0 && $('ul.featured-base-items.js-featured-base-scroll-mobile > li').length > 0) {
-      $('ul.featured-base-items.js-featured-base-scroll-mobile > li').each((index, elem) => {
-        const item: PuhuTvItem = {
-          title: $(elem).find(".detail-content").text() as string,
-          thumbnail: $(elem).find("img").attr("src") as string,
-          link: $(elem).find("a").last().attr("href") as string,
-        };
-        results.push(item);
-      });
+    if (
+      id.length == 0 &&
+      $("ul.featured-base-items.js-featured-base-scroll-mobile > li").length > 0
+    ) {
+      $("ul.featured-base-items.js-featured-base-scroll-mobile > li").each(
+        (index, elem) => {
+          const item: PuhuTvItem = {
+            title: $(elem).find(".detail-content").text() as string,
+            thumbnail: $(elem).find("img").attr("src") as string,
+            link: $(elem).find("a").last().attr("href") as string,
+          };
+          results.push(item);
+        }
+      );
     }
   }
   return results;
 };
 
-
-const categoryList = async (): Promise<DashboardItem[]> => {
+const dashboardsList = async (): Promise<DashboardItem[]> => {
   let url = "https://puhutv.com";
   const { data } = await axios.get(url);
   const $ = cheerio.load(data);
   const dash: DashboardItem[] = [];
   $("ul.featured-base-items").each((index, elem) => {
     const item: DashboardItem = {
-      id: $(elem).attr("id") as string || "",
+      id: ($(elem).attr("id") as string) || "",
       name: $(elem).find("li").attr("data-ga-slider-title") as string,
-      hideOnHomescreen: false
+      hideOnHomescreen: false,
     };
     dash.push(item);
   });
   $("ul.puhu-slider-items").each((index, elem) => {
     const item: DashboardItem = {
-      id: $(elem).attr("id") as string || "",
+      id: ($(elem).attr("id") as string) || "",
       name: $(elem).find("li").attr("data-ga-slider-title") as string,
-      hideOnHomescreen: true
+      hideOnHomescreen: true,
     };
     dash.push(item);
   });
-  
+
   return dash;
 };
 
+const catalogChangeTop = async (): Promise<Catalog[]> => {
+  const CatalogReturn: Catalog[] = [];
+  const DashboardList = await dashboardsList();
+  DashboardList.map((elem, index) => {
+    const item: Catalog = {
+      features: {
+        search: { enabled: true },
+      },
+      options: {
+        imageShape: elem.hideOnHomescreen ? "regular" : "landscape",
+        displayName: true,
+      },
+    };
+    CatalogReturn.push(item);
+  });
+  return CatalogReturn;
+};
 
 (async () => {
-const puhutvAddon = createAddon({
+  const catalogChange = await catalogChangeTop();
+  const dashboardList = await dashboardsList();
+
+  const puhutvAddon = createAddon({
     id: "puhutv",
     name: "PuhuTv",
     description: "Puhu Tv Videos",
     icon: "https://puhutv.com/app/themes/puhutv/assets/images/favicon.ico",
     version: "0.1.0",
     itemTypes: ["movie", "series"],
-    catalogs: [
-      {
-        features: {
-          search: { enabled: true },
-        },
-        options: {
-          imageShape: "regular",
-          displayName: true,
-        },
-      },
-    ],
-    dashboards: await categoryList()
+    catalogs: catalogChange,
+    dashboards: dashboardList,
   });
 
   puhutvAddon.registerActionHandler("catalog", async (input, ctx) => {
-    await categoryList()
+    await dashboardsList();
     const { fetch } = ctx;
     const { id } = input; // cagetory get name
     let search = false;
