@@ -95,7 +95,7 @@ const parseList = async (
               title: $(elem).find(".detail-content").text() as string,
               thumbnail: $(elem).find("img").attr("src") as string,
               link: $(elem).find("a").last().attr("href") as string,
-              isDic: false,
+              isDic: true,
             };
             results.push(item);
           }
@@ -113,9 +113,11 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
   const $ = cheerio.load(data);
   const dash: DashboardItem[] = [];
   $("ul.featured-base-items").each((index, elem) => {
+
+    
     const item: DashboardItem = {
       id: ($(elem).attr("id") as string) || "",
-      name: $(elem).find("li").attr("data-ga-slider-title") as string,
+      name: $(elem).find("li").attr("data-ga-slider-title")?.toLocaleLowerCase() as string,
       hideOnHomescreen: false,
       options: {
         imageShape: "regular",
@@ -127,10 +129,10 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
   $("ul.puhu-slider-items").each((index, elem) => {
     const item: DashboardItem = {
       id: ($(elem).attr("id") as string) || "",
-      name: $(elem).find("li").attr("data-ga-slider-title") as string,
+      name: $(elem).find("li").attr("data-ga-slider-title")?.toLocaleLowerCase() as string,
       hideOnHomescreen: false,
       options: {
-        imageShape: "landscape",
+        imageShape: "regular",
         displayName: true,
       },
     };
@@ -189,7 +191,7 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
             id,
             ids: { id },
             type: "directory",
-            name: `${item.title}`,
+            name: "",
             images: {
               poster: item.thumbnail,
             },
