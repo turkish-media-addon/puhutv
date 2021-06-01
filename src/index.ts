@@ -9,15 +9,46 @@ interface PuhuTvItem {
 }
 interface idPuhuTvItem {
   downloads: string;
+  isTr: boolean;
 }
+
+const dailymotionResolver = async (html: string) => {
+  const $ = cheerio.load(html);
+  const tmp = $("body").find("script")?.toString();
+  const id = tmp
+    .split("window.__PLAYER_CONFIG__ =")[1]
+    .split("qualities")[1]
+    .split("auto")[1]
+    .split('url":')[1]
+    .split("}]}")[0]
+    .split('"')[1]
+    .replace(/\\\//g, "/");
+  return {
+    downloads: id,
+    isTr: false,
+  };
+};
 
 const parseId = async (html: string): Promise<idPuhuTvItem> => {
   const $ = cheerio.load(html);
-  const tmp = $("#player_container").find("div").find("script")?.toString();
-  const id = tmp.split("player.video.loader(")[1].split("', '")[1];
-  return {
-    downloads: id,
-  };
+  if ($("#player_container").find("div").find("script").length > 0) {
+    const tmp = $("#player_container").find("div").find("script")?.toString();
+    const id = tmp.split("player.video.loader(")[1].split("', '")[1];
+    return {
+      downloads: id,
+      isTr: true,
+    };
+  } else {
+    const tmp = $("#player_container").find("div");
+    const urldail = $(tmp).find("iframe").attr("src") as string;
+    const resolver = await axios
+      .get(urldail)
+      .then(async (resp) => dailymotionResolver(await resp.data));
+    return {
+      downloads: resolver.downloads,
+      isTr: resolver.isTr,
+    };
+  }
 };
 
 const parseList = async (
@@ -44,18 +75,20 @@ const parseList = async (
       };
       results.push(item);
     });
-  } else if ($("section.hero.hero--dizi-detay.hero--subpages").length > 0  && $(".js-ga-player-tab-content").length == 0) {
+  } else if (
+    $("section.hero.hero--dizi-detay.hero--subpages").length > 0 &&
+    $(".js-ga-player-tab-content").length == 0
+  ) {
     $("section.hero--subpages").each((index, elem) => {
-        const item: PuhuTvItem = {
-          title: $(elem).find(".js-ga-content-title").text() as string,
-          thumbnail: $(elem).find("img").attr("src") as string,
-          link: $(elem).find("a").first().attr("href") as string,
-          isDic: false,
-        };
-        results.push(item);
-      }
-    );
-  }else {
+      const item: PuhuTvItem = {
+        title: $(elem).find(".js-ga-content-title").text() as string,
+        thumbnail: $(elem).find("img").attr("src") as string,
+        link: $(elem).find("a").first().attr("href") as string,
+        isDic: false,
+      };
+      results.push(item);
+    });
+  } else {
     if (search) {
       $(".search-list-item").each((index, elem) => {
         const thumbnail = $(elem).find("img").attr("src") as string;
@@ -113,11 +146,12 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
   const $ = cheerio.load(data);
   const dash: DashboardItem[] = [];
   $("ul.featured-base-items").each((index, elem) => {
-
-    
     const item: DashboardItem = {
       id: ($(elem).attr("id") as string) || "",
-      name: $(elem).find("li").attr("data-ga-slider-title")?.toLocaleLowerCase() as string,
+      name: $(elem)
+        .find("li")
+        .attr("data-ga-slider-title")
+        ?.toLocaleLowerCase() as string,
       hideOnHomescreen: false,
       options: {
         imageShape: "regular",
@@ -129,7 +163,10 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
   $("ul.puhu-slider-items").each((index, elem) => {
     const item: DashboardItem = {
       id: ($(elem).attr("id") as string) || "",
-      name: $(elem).find("li").attr("data-ga-slider-title")?.toLocaleLowerCase() as string,
+      name: $(elem)
+        .find("li")
+        .attr("data-ga-slider-title")
+        ?.toLocaleLowerCase() as string,
       hideOnHomescreen: false,
       options: {
         imageShape: "regular",
@@ -149,7 +186,7 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
     name: "PuhuTv",
     description: "Puhu Tv Videos",
     icon: "https://puhutv.com/app/themes/puhutv/assets/images/favicon.ico",
-    version: "0.1.0",
+    version: "0.1.2",
     itemTypes: ["movie", "series"],
     catalogs: [
       {
@@ -170,10 +207,12 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
     let siSlice = id.toString().substring(0, 1);
 
     if (input.search) {
-      
-      url = url + "/ajax/widget/render?widget=autocomplete_search&content_pool_id=28&keyword=" + input.search +
-      " &load=1&language=tr"; // get search
-    search = true;
+      url =
+        url +
+        "/ajax/widget/render?widget=autocomplete_search&content_pool_id=28&keyword=" +
+        input.search +
+        " &load=1&language=tr"; // get search
+      search = true;
     } else if (siSlice == "/") {
       url = url + id;
     }
@@ -221,39 +260,57 @@ const dashboardsList = async (): Promise<DashboardItem[]> => {
       parseId(await resp.text())
     );
 
-    const datajson = `https://dygvideo.dygdigital.com/api/video_info?akamai=true&PublisherId=29&ReferenceId=${result.downloads}&SecretKey=NtvApiSecret2014*`;
+    if (result.isTr) {
+      const datajson = `https://dygvideo.dygdigital.com/api/video_info?akamai=true&PublisherId=29&ReferenceId=${result.downloads}&SecretKey=NtvApiSecret2014*`;
 
-    const getDygvideo = () => {
-      try {
-        return axios.get(datajson);
-      } catch (error) {
-        console.error(error);
+      const getDygvideo = () => {
+        try {
+          return axios.get(datajson);
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
+      const dygvideo = await getDygvideo();
+      const dataDetail = dygvideo.data.data;
+
+      var source = dataDetail.flavors.hls;
+      for (var i in qualities) {
+        videoarray.push({
+          type: "url",
+          url: source,
+          name: dataDetail.media_analytics.show,
+        });
       }
-    };
 
-    const dygvideo = await getDygvideo();
-    const dataDetail = dygvideo.data.data;
+      return {
+        type: "movie",
+        ids: input.ids,
+        title: dataDetail.media_analytics.show,
+        name: dataDetail.media_analytics.title_event_name,
+        description: dataDetail.description,
+        images: {
+          poster: dataDetail.screenshots[0].image_url,
+        },
+        sources: videoarray,
+      };
+    } else {
+      const source = result.downloads;
+      for (var i in qualities) {
+        videoarray.push({
+          type: "url",
+          url: source,
+          name: input.name,
+        });
+      }
 
-    var source = dataDetail.flavors.hls;
-    for (var i in qualities) {
-      videoarray.push({
-        type: "url",
-        url: source,
-        name: dataDetail.media_analytics.show,
-      });
+      return {
+        type: "movie",
+        ids: input.ids,
+        description: input.name,
+        sources: videoarray,
+      };
     }
-
-    return {
-      type: "movie",
-      ids: input.ids,
-      title: dataDetail.media_analytics.show,
-      name: dataDetail.media_analytics.title_event_name,
-      description: dataDetail.description,
-      images: {
-        poster: dataDetail.screenshots[0].image_url,
-      },
-      sources: videoarray,
-    };
   });
 
   runCli([puhutvAddon], { singleMode: false });
